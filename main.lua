@@ -147,7 +147,7 @@ local GAME_SCRIPTS = {
 
     -- Adicione mais URLs de scripts de jogos aqui conforme necessário
     -- Exemplo:
-    "https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/novo_jogo_script.lua",
+    "https://raw.githubusercontent.com/NipeBull/eclipsehub/refs/heads/main/karfihub.lua",
 }
 
 -- ═════════════════════════════════════════════════════════════════════
