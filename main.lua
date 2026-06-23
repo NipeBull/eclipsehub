@@ -517,7 +517,7 @@ ImaSection:CreateKeybind({
     Name       = "Atalho do Imã",
     CurrentKey = Enum.KeyCode.H,
     Callback   = function()
-        imaToggle:Set(not imaToggle.Value)
+        imaToggle:Set(not Rayfield.Flags["ToggleMagnet"].Value)
     end,
 })
 
@@ -637,7 +637,7 @@ local profileDropdown
 local function refreshProfileList()
     local list = readIndex()
     if profileDropdown then
-        profileDropdown:SetValues(list)
+        profileDropdown:Refresh(list, nil)
     end
 end
 
@@ -658,7 +658,7 @@ profileDropdown = ProfileSection:CreateDropdown({
 ProfileSection:CreateButton({
     Name     = "💾  Salvar Perfil",
     Callback = function()
-        local name = profileNameInput.Value
+        local name = Rayfield.Flags["ProfileNameInput"] and Rayfield.Flags["ProfileNameInput"].Value or ""
         if name and name ~= "" then
             if saveProfile(name) then
                 Rayfield:Notify({ title = "💾 Perfil", content = "'" .. name .. "' salvo!", duration = 3 })
@@ -675,7 +675,7 @@ ProfileSection:CreateButton({
 ProfileSection:CreateButton({
     Name     = "🗑  Excluir Perfil",
     Callback = function()
-        local name = profileNameInput.Value
+        local name = Rayfield.Flags["ProfileNameInput"] and Rayfield.Flags["ProfileNameInput"].Value or ""
         if name and name ~= "" then
             deleteProfile(name)
             Rayfield:Notify({ title = "🗑 Perfil", content = "'" .. name .. "' excluído.", duration = 3 })
