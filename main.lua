@@ -140,16 +140,14 @@ end
 -- ═════════════════════════════════════════════════════════════════════
 local GAME_SCRIPTS = {
     -- Exemplo para o Exército Brasileiro (EB)
-    -- Certifique-se de que o arquivo eb_game_script.lua esteja no seu GitHub Raw
     "https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/eb_game_script.lua",
 
     -- Exemplo para o Turbo Grid
-    -- Certifique-se de que o arquivo turbo_grid_game_script.lua esteja no seu GitHub Raw
     "https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/turbo_grid_game_script.lua",
 
     -- Adicione mais URLs de scripts de jogos aqui conforme necessário
     -- Exemplo:
-    -- "https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/novo_jogo_script.lua",
+    "https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPOSITORIO/main/novo_jogo_script.lua",
 }
 
 -- ═════════════════════════════════════════════════════════════════════
