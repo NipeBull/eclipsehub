@@ -1,391 +1,464 @@
 -- ════════════════════════════════════════════════════════════════════
 --  KARFI HUB  v4.0  —  LocalScript  [RAYFIELD EDITION]
---  GUI manual removida e substituída por Rayfield.
---  Toda a lógica de jogo permanece 100% intacta.
 -- ════════════════════════════════════════════════════════════════════
+
 -- ════════════════════════════════════════════════════════════════════
---  KARFI HUB — KEY SYSTEM  (JnKie SDK + DB externa)
+--  KEY SYSTEM  ——  GUI Customizada + JnKie DB
+--  Edite apenas este bloco de configuração
 -- ════════════════════════════════════════════════════════════════════
---
---  CONFIGURAÇÃO  ← edite APENAS este bloco
--- ────────────────────────────────────────────────────────────────────
-local KS_CONFIG = {
-    -- ► Coloque aqui o NOME DO SERVIÇO exato do painel JnKie
-    service    = "KarfiHub",
-
-    -- ► Coloque aqui o IDENTIFIER (número do serviço no painel JnKie)
-    identifier = "35760",
-
-    -- ► Provider padrão configurado no painel ("Key", "Mixed", etc.)
-    provider   = "Key",
-
-    -- ► Link que aparece no botão "Obter Key" (Discord, loja, etc.)
-    getKeyURL  = "https://discord.gg/bRKJx7EjYa",
-
-    -- ► Máximo de tentativas erradas antes de encerrar
-    maxAttempts = 5,
-
-    -- ► Arquivo local onde a key válida é salva (evita pedir de novo)
-    saveFile   = "karfi_key.txt",
+local KS = {
+    KeyLink    = "https://discord.gg/bRKJx7EjYa",
+    Service    = "KarfiHub",
+    Identifier = "35760",
+    SaveFile   = "KarfiHub_key.txt",
 }
--- ════════════════════════════════════════════════════════════════════
---  FIM DA CONFIGURAÇÃO — não edite abaixo desta linha
--- ════════════════════════════════════════════════════════════════════
 
--- ── Filesystem helpers (usados pelo key system) ──────────────────────
-local function _getfs_ks(name, fallback)
-    local ok, fn = pcall(function() return rawget(_G, name) end)
-    if ok and type(fn) == "function" then return fn end
-    return fallback
-end
-local _writefile_ks  = _getfs_ks("writefile",  function() end)
-local _readfile_ks   = _getfs_ks("readfile",   function() return nil end)
-local _isfile_ks     = _getfs_ks("isfile",     function() return false end)
+do
+    -- ── Serviços locais ──────────────────────────────────────────────
+    local TW  = game:GetService("TweenService")
+    local UIS = game:GetService("UserInputService")
+    local PL  = game:GetService("Players").LocalPlayer
+    local SG  = PL:WaitForChild("PlayerGui")
 
--- ── Carrega SDK do JnKie ─────────────────────────────────────────────
-local Junkie = loadstring(game:HttpGet("https://jnkie.com/sdk/library.lua"))()
-Junkie.service    = KS_CONFIG.service
-Junkie.identifier = KS_CONFIG.identifier
-Junkie.provider   = KS_CONFIG.provider
+    -- ── Filesystem helpers ───────────────────────────────────────────
+    local function _fs(n, fb)
+        local ok, f = pcall(function() return rawget(_G, n) end)
+        return (ok and type(f) == "function") and f or fb
+    end
+    local writefile = _fs("writefile",  function() end)
+    local readfile  = _fs("readfile",   function() return "" end)
+    local isfile    = _fs("isfile",     function() return false end)
 
--- ── GUI de Key (Rayfield-style, nativa) ──────────────────────────────
-local TweenService_ks = game:GetService("TweenService")
-local Players_ks      = game:GetService("Players")
-local UIS_ks          = game:GetService("UserInputService")
-local player_ks       = Players_ks.LocalPlayer
-local pGui_ks         = player_ks:WaitForChild("PlayerGui")
+    -- ── Carrega JnKie SDK (DB externa) ───────────────────────────────
+    local Junkie = loadstring(game:HttpGet("https://jnkie.com/sdk/library.lua"))()
+    Junkie.service    = KS.Service
+    Junkie.identifier = KS.Identifier
+    Junkie.provider   = "Key"
 
-local function buildKeyGUI()
-    -- Remove GUI antiga se existir
-    local old = pGui_ks:FindFirstChild("KarfiKeyGui")
+    -- ── Tween helper ─────────────────────────────────────────────────
+    local function tw(obj, props, t, style, dir)
+        TW:Create(obj, TweenInfo.new(
+            t or 0.25,
+            style or Enum.EasingStyle.Quint,
+            dir   or Enum.EasingDirection.Out
+        ), props):Play()
+    end
+
+    -- ── Constrói a GUI ───────────────────────────────────────────────
+    local old = SG:FindFirstChild("KarfiKeySystem")
     if old then old:Destroy() end
 
-    local sg = Instance.new("ScreenGui")
-    sg.Name            = "KarfiKeyGui"
-    sg.ResetOnSpawn    = false
-    sg.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
-    sg.Parent          = pGui_ks
+    local gui = Instance.new("ScreenGui")
+    gui.Name           = "KarfiKeySystem"
+    gui.ResetOnSpawn   = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.DisplayOrder   = 999
+    gui.Parent         = SG
 
-    -- Fundo escuro
-    local bg = Instance.new("Frame")
-    bg.Size            = UDim2.fromScale(1, 1)
-    bg.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-    bg.BackgroundTransparency = 0.1
-    bg.BorderSizePixel = 0
-    bg.Parent          = sg
+    -- Fundo com blur visual
+    local blur = Instance.new("Frame")
+    blur.Name                  = "Blur"
+    blur.Size                  = UDim2.fromScale(1, 1)
+    blur.BackgroundColor3      = Color3.fromRGB(5, 5, 10)
+    blur.BackgroundTransparency = 0.35
+    blur.BorderSizePixel       = 0
+    blur.ZIndex                = 1
+    blur.Parent                = gui
 
-    -- Painel central
-    local panel = Instance.new("Frame")
-    panel.Size             = UDim2.fromOffset(440, 280)
-    panel.Position         = UDim2.new(0.5, -220, 0.5, -140)
-    panel.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
-    panel.BorderSizePixel  = 0
-    panel.Parent           = bg
-    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
+    -- Container principal (começa fora da tela para animar)
+    local container = Instance.new("Frame")
+    container.Name                  = "Container"
+    container.Size                  = UDim2.fromOffset(480, 320)
+    container.Position              = UDim2.new(0.5, -240, 1.5, 0)  -- abaixo da tela
+    container.BackgroundColor3      = Color3.fromRGB(13, 13, 20)
+    container.BorderSizePixel       = 0
+    container.ZIndex                = 2
+    container.Parent                = gui
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 14)
 
-    -- Borda colorida top
-    local accent = Instance.new("Frame")
-    accent.Size             = UDim2.new(1, 0, 0, 3)
-    accent.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
-    accent.BorderSizePixel  = 0
-    accent.Parent           = panel
-    Instance.new("UICorner", accent).CornerRadius = UDim.new(0, 12)
+    -- Sombra (frame ligeiramente maior atrás)
+    local shadow = Instance.new("Frame")
+    shadow.Name                  = "Shadow"
+    shadow.Size                  = UDim2.new(1, 16, 1, 16)
+    shadow.Position              = UDim2.new(0, -8, 0, 8)
+    shadow.BackgroundColor3      = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.55
+    shadow.BorderSizePixel       = 0
+    shadow.ZIndex                = 1
+    shadow.Parent                = container
+    Instance.new("UICorner", shadow).CornerRadius = UDim.new(0, 18)
 
-    -- Título
-    local title = Instance.new("TextLabel")
-    title.Size              = UDim2.new(1, -40, 0, 36)
-    title.Position          = UDim2.fromOffset(20, 18)
-    title.BackgroundTransparency = 1
-    title.Text              = "KARFI HUB  v4.0"
-    title.TextColor3        = Color3.fromRGB(255, 255, 255)
-    title.TextSize          = 20
-    title.Font              = Enum.Font.GothamBold
-    title.TextXAlignment    = Enum.TextXAlignment.Left
-    title.Parent            = panel
+    -- Faixa lateral esquerda colorida
+    local accentBar = Instance.new("Frame")
+    accentBar.Name             = "AccentBar"
+    accentBar.Size             = UDim2.new(0, 4, 1, -28)
+    accentBar.Position         = UDim2.fromOffset(0, 14)
+    accentBar.BackgroundColor3 = Color3.fromRGB(110, 80, 255)
+    accentBar.BorderSizePixel  = 0
+    accentBar.ZIndex           = 3
+    accentBar.Parent           = container
+    Instance.new("UICorner", accentBar).CornerRadius = UDim.new(0, 4)
+
+    -- Gradiente no accent bar
+    local accentGrad = Instance.new("UIGradient")
+    accentGrad.Color    = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 80, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 80, 180)),
+    })
+    accentGrad.Rotation = 90
+    accentGrad.Parent   = accentBar
+
+    -- Logo / título
+    local logo = Instance.new("TextLabel")
+    logo.Name                 = "Logo"
+    logo.Size                 = UDim2.new(1, -30, 0, 38)
+    logo.Position             = UDim2.fromOffset(20, 18)
+    logo.BackgroundTransparency = 1
+    logo.Text                 = "KARFI  HUB"
+    logo.TextColor3           = Color3.fromRGB(255, 255, 255)
+    logo.TextSize             = 26
+    logo.Font                 = Enum.Font.GothamBold
+    logo.TextXAlignment       = Enum.TextXAlignment.Left
+    logo.ZIndex               = 4
+    logo.Parent               = container
+
+    -- Badge "v4.0"
+    local badge = Instance.new("Frame")
+    badge.Name             = "Badge"
+    badge.Size             = UDim2.fromOffset(42, 20)
+    badge.Position         = UDim2.fromOffset(162, 24)
+    badge.BackgroundColor3 = Color3.fromRGB(110, 80, 255)
+    badge.BorderSizePixel  = 0
+    badge.ZIndex           = 4
+    badge.Parent           = container
+    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
+
+    local badgeTxt = Instance.new("TextLabel")
+    badgeTxt.Size                = UDim2.fromScale(1, 1)
+    badgeTxt.BackgroundTransparency = 1
+    badgeTxt.Text                = "v4.0"
+    badgeTxt.TextColor3          = Color3.fromRGB(255, 255, 255)
+    badgeTxt.TextSize            = 11
+    badgeTxt.Font                = Enum.Font.GothamBold
+    badgeTxt.ZIndex              = 5
+    badgeTxt.Parent              = badge
 
     -- Subtítulo
     local sub = Instance.new("TextLabel")
-    sub.Size              = UDim2.new(1, -40, 0, 20)
-    sub.Position          = UDim2.fromOffset(20, 52)
+    sub.Name                 = "Sub"
+    sub.Size                 = UDim2.new(1, -30, 0, 18)
+    sub.Position             = UDim2.fromOffset(20, 58)
     sub.BackgroundTransparency = 1
-    sub.Text              = "Insira sua key de acesso para continuar"
-    sub.TextColor3        = Color3.fromRGB(160, 160, 180)
-    sub.TextSize          = 13
-    sub.Font              = Enum.Font.Gotham
-    sub.TextXAlignment    = Enum.TextXAlignment.Left
-    sub.Parent            = panel
+    sub.Text                 = "Autenticação necessária para continuar"
+    sub.TextColor3           = Color3.fromRGB(120, 115, 150)
+    sub.TextSize             = 13
+    sub.Font                 = Enum.Font.Gotham
+    sub.TextXAlignment       = Enum.TextXAlignment.Left
+    sub.ZIndex               = 4
+    sub.Parent               = container
 
-    -- Label status / erro
-    local statusLbl = Instance.new("TextLabel")
-    statusLbl.Size              = UDim2.new(1, -40, 0, 18)
-    statusLbl.Position          = UDim2.fromOffset(20, 76)
-    statusLbl.BackgroundTransparency = 1
-    statusLbl.Text              = ""
-    statusLbl.TextColor3        = Color3.fromRGB(240, 80, 80)
-    statusLbl.TextSize          = 12
-    statusLbl.Font              = Enum.Font.Gotham
-    statusLbl.TextXAlignment    = Enum.TextXAlignment.Left
-    statusLbl.Parent            = panel
+    -- Divisor
+    local divider = Instance.new("Frame")
+    divider.Size             = UDim2.new(1, -30, 0, 1)
+    divider.Position         = UDim2.fromOffset(20, 85)
+    divider.BackgroundColor3 = Color3.fromRGB(35, 33, 50)
+    divider.BorderSizePixel  = 0
+    divider.ZIndex           = 4
+    divider.Parent           = container
 
-    -- Campo de input
-    local inputBg = Instance.new("Frame")
-    inputBg.Size             = UDim2.new(1, -40, 0, 44)
-    inputBg.Position         = UDim2.fromOffset(20, 108)
-    inputBg.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
-    inputBg.BorderSizePixel  = 0
-    inputBg.Parent           = panel
-    Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 8)
+    -- Label "Sua Key"
+    local inputLabel = Instance.new("TextLabel")
+    inputLabel.Size                = UDim2.new(1, -30, 0, 16)
+    inputLabel.Position            = UDim2.fromOffset(20, 100)
+    inputLabel.BackgroundTransparency = 1
+    inputLabel.Text                = "SUA KEY"
+    inputLabel.TextColor3          = Color3.fromRGB(110, 80, 255)
+    inputLabel.TextSize            = 11
+    inputLabel.Font                = Enum.Font.GothamBold
+    inputLabel.TextXAlignment      = Enum.TextXAlignment.Left
+    inputLabel.ZIndex              = 4
+    inputLabel.Parent              = container
+
+    -- Input box fundo
+    local inputFrame = Instance.new("Frame")
+    inputFrame.Name             = "InputFrame"
+    inputFrame.Size             = UDim2.new(1, -30, 0, 46)
+    inputFrame.Position         = UDim2.fromOffset(20, 120)
+    inputFrame.BackgroundColor3 = Color3.fromRGB(22, 20, 33)
+    inputFrame.BorderSizePixel  = 0
+    inputFrame.ZIndex           = 4
+    inputFrame.Parent           = container
+    Instance.new("UICorner", inputFrame).CornerRadius = UDim.new(0, 10)
+
+    -- Borda do input (via stroke)
+    local inputStroke = Instance.new("UIStroke")
+    inputStroke.Color       = Color3.fromRGB(45, 40, 70)
+    inputStroke.Thickness   = 1.5
+    inputStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    inputStroke.Parent      = inputFrame
+
+    -- Ícone de cadeado
+    local lockIcon = Instance.new("TextLabel")
+    lockIcon.Size                = UDim2.fromOffset(30, 46)
+    lockIcon.Position            = UDim2.fromOffset(10, 0)
+    lockIcon.BackgroundTransparency = 1
+    lockIcon.Text                = "🔑"
+    lockIcon.TextSize            = 16
+    lockIcon.Font                = Enum.Font.Gotham
+    lockIcon.ZIndex              = 5
+    lockIcon.Parent              = inputFrame
 
     local inputBox = Instance.new("TextBox")
-    inputBox.Size              = UDim2.new(1, -20, 1, 0)
-    inputBox.Position          = UDim2.fromOffset(10, 0)
+    inputBox.Name              = "Input"
+    inputBox.Size              = UDim2.new(1, -50, 1, 0)
+    inputBox.Position          = UDim2.fromOffset(40, 0)
     inputBox.BackgroundTransparency = 1
     inputBox.Text              = ""
     inputBox.PlaceholderText   = "Cole sua key aqui..."
-    inputBox.TextColor3        = Color3.fromRGB(230, 230, 255)
-    inputBox.PlaceholderColor3 = Color3.fromRGB(90, 90, 110)
+    inputBox.TextColor3        = Color3.fromRGB(220, 215, 255)
+    inputBox.PlaceholderColor3 = Color3.fromRGB(70, 65, 100)
     inputBox.TextSize          = 14
     inputBox.Font              = Enum.Font.GothamMono
     inputBox.ClearTextOnFocus  = false
-    inputBox.Parent            = inputBg
+    inputBox.TextXAlignment    = Enum.TextXAlignment.Left
+    inputBox.ZIndex            = 5
+    inputBox.Parent            = inputFrame
 
-    -- Botão Validar
-    local btnValidar = Instance.new("TextButton")
-    btnValidar.Size             = UDim2.new(0.55, -5, 0, 44)
-    btnValidar.Position         = UDim2.fromOffset(20, 170)
-    btnValidar.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
-    btnValidar.Text             = "Validar Key"
-    btnValidar.TextColor3       = Color3.fromRGB(255, 255, 255)
-    btnValidar.TextSize         = 14
-    btnValidar.Font             = Enum.Font.GothamBold
-    btnValidar.BorderSizePixel  = 0
-    btnValidar.AutoButtonColor  = false
-    btnValidar.Parent           = panel
-    Instance.new("UICorner", btnValidar).CornerRadius = UDim.new(0, 8)
+    -- Input focus glow
+    inputBox.Focused:Connect(function()
+        tw(inputStroke, { Color = Color3.fromRGB(110, 80, 255) }, 0.2)
+    end)
+    inputBox.FocusLost:Connect(function()
+        tw(inputStroke, { Color = Color3.fromRGB(45, 40, 70) }, 0.2)
+    end)
 
-    -- Botão Obter Key
-    local btnGetKey = Instance.new("TextButton")
-    btnGetKey.Size             = UDim2.new(0.45, -15, 0, 44)
-    btnGetKey.Position         = UDim2.new(0.55, 0, 0, 170)
-    btnGetKey.BackgroundColor3 = Color3.fromRGB(32, 34, 48)
-    btnGetKey.Text             = "Obter Key"
-    btnGetKey.TextColor3       = Color3.fromRGB(99, 102, 241)
-    btnGetKey.TextSize         = 14
-    btnGetKey.Font             = Enum.Font.GothamBold
-    btnGetKey.BorderSizePixel  = 0
-    btnGetKey.AutoButtonColor  = false
-    btnGetKey.Parent           = panel
-    Instance.new("UICorner", btnGetKey).CornerRadius = UDim.new(0, 8)
+    -- Status label
+    local statusLbl = Instance.new("TextLabel")
+    statusLbl.Name                = "Status"
+    statusLbl.Size                = UDim2.new(1, -30, 0, 18)
+    statusLbl.Position            = UDim2.fromOffset(20, 172)
+    statusLbl.BackgroundTransparency = 1
+    statusLbl.Text                = ""
+    statusLbl.TextColor3          = Color3.fromRGB(200, 70, 70)
+    statusLbl.TextSize            = 12
+    statusLbl.Font                = Enum.Font.Gotham
+    statusLbl.TextXAlignment      = Enum.TextXAlignment.Left
+    statusLbl.ZIndex              = 4
+    statusLbl.Parent              = container
 
-    -- Contador de tentativas
-    local attemptsLbl = Instance.new("TextLabel")
-    attemptsLbl.Size              = UDim2.new(1, -40, 0, 16)
-    attemptsLbl.Position          = UDim2.fromOffset(20, 228)
-    attemptsLbl.BackgroundTransparency = 1
-    attemptsLbl.Text              = ""
-    attemptsLbl.TextColor3        = Color3.fromRGB(100, 100, 120)
-    attemptsLbl.TextSize          = 11
-    attemptsLbl.Font              = Enum.Font.Gotham
-    attemptsLbl.TextXAlignment    = Enum.TextXAlignment.Left
-    attemptsLbl.Parent            = panel
+    -- ── Botão helper ─────────────────────────────────────────────────
+    local function makeBtn(label, emoji, x, w, isPrimary)
+        local f = Instance.new("Frame")
+        f.Size             = UDim2.fromOffset(w, 46)
+        f.Position         = UDim2.fromOffset(x, 196)
+        f.BackgroundColor3 = isPrimary
+            and Color3.fromRGB(110, 80, 255)
+            or  Color3.fromRGB(22, 20, 33)
+        f.BorderSizePixel  = 0
+        f.ZIndex           = 4
+        f.Parent           = container
+        Instance.new("UICorner", f).CornerRadius = UDim.new(0, 10)
+
+        if not isPrimary then
+            local st = Instance.new("UIStroke")
+            st.Color     = Color3.fromRGB(45, 40, 70)
+            st.Thickness = 1.5
+            st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            st.Parent    = f
+        else
+            local g = Instance.new("UIGradient")
+            g.Color    = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(130, 90, 255)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 70, 200)),
+            })
+            g.Rotation = 45
+            g.Parent   = f
+        end
+
+        local btn = Instance.new("TextButton")
+        btn.Size                = UDim2.fromScale(1, 1)
+        btn.BackgroundTransparency = 1
+        btn.Text                = emoji .. "  " .. label
+        btn.TextColor3          = Color3.fromRGB(255, 255, 255)
+        btn.TextSize            = 13
+        btn.Font                = Enum.Font.GothamBold
+        btn.ZIndex              = 5
+        btn.Parent              = f
+
+        -- Hover
+        btn.MouseEnter:Connect(function()
+            tw(f, { BackgroundColor3 = isPrimary
+                and Color3.fromRGB(140, 105, 255)
+                or  Color3.fromRGB(32, 29, 48) }, 0.15)
+            tw(f, { Size = UDim2.fromOffset(w, 49) }, 0.12)
+            tw(f, { Position = UDim2.fromOffset(x, 194) }, 0.12)
+        end)
+        btn.MouseLeave:Connect(function()
+            tw(f, { BackgroundColor3 = isPrimary
+                and Color3.fromRGB(110, 80, 255)
+                or  Color3.fromRGB(22, 20, 33) }, 0.15)
+            tw(f, { Size = UDim2.fromOffset(w, 46) }, 0.12)
+            tw(f, { Position = UDim2.fromOffset(x, 196) }, 0.12)
+        end)
+
+        return btn, f
+    end
+
+    local btnConfirmar, fConfirmar = makeBtn("Confirmar",   "✦", 20,  218, true)
+    local btnGetKey,   fGetKey    = makeBtn("Obter Key",   "🔗", 248, 110, false)
+    local btnCopiar,   fCopiar    = makeBtn("Copiar Link", "📋", 368, 92,  false)
 
     -- Rodapé
     local footer = Instance.new("TextLabel")
-    footer.Size              = UDim2.new(1, -40, 0, 16)
-    footer.Position          = UDim2.fromOffset(20, 250)
+    footer.Size                = UDim2.new(1, -30, 0, 16)
+    footer.Position            = UDim2.fromOffset(20, 294)
     footer.BackgroundTransparency = 1
-    footer.Text              = "Powered by JnKie Key System  •  DB externa"
-    footer.TextColor3        = Color3.fromRGB(55, 55, 70)
-    footer.TextSize          = 10
-    footer.Font              = Enum.Font.Gotham
-    footer.TextXAlignment    = Enum.TextXAlignment.Left
-    footer.Parent            = panel
+    footer.Text                = "Powered by JnKie  •  HWID vinculado  •  karfihub.gg"
+    footer.TextColor3          = Color3.fromRGB(45, 42, 65)
+    footer.TextSize            = 10
+    footer.Font                = Enum.Font.Gotham
+    footer.TextXAlignment      = Enum.TextXAlignment.Left
+    footer.ZIndex              = 4
+    footer.Parent              = container
 
-    return sg, inputBox, btnValidar, btnGetKey, statusLbl, attemptsLbl
-end
+    -- ── Animação de entrada ──────────────────────────────────────────
+    task.delay(0.05, function()
+        tw(container,
+            { Position = UDim2.new(0.5, -240, 0.5, -160) },
+            0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    end)
 
--- ── Lógica de validação ───────────────────────────────────────────────
-local function runKeySystem()
-    -- Tenta carregar key salva localmente
+    -- ── Lógica ───────────────────────────────────────────────────────
+    local validated  = false
+    local validating = false
+    local attempts   = 0
+    local MAX_TRIES  = 5
+
+    local function setStatus(msg, ok)
+        statusLbl.Text       = msg
+        statusLbl.TextColor3 = ok
+            and Color3.fromRGB(80, 220, 130)
+            or  Color3.fromRGB(220, 70, 70)
+    end
+
+    -- Tenta carregar key salva
     local savedKey = nil
     pcall(function()
-        if _isfile_ks(KS_CONFIG.saveFile) then
-            savedKey = _readfile_ks(KS_CONFIG.saveFile)
-            if savedKey then savedKey = savedKey:match("^%s*(.-)%s*$") end
+        if isfile(KS.SaveFile) then
+            local raw = readfile(KS.SaveFile) or ""
+            savedKey = raw:match("^%s*(.-)%s*$")
             if savedKey == "" then savedKey = nil end
         end
     end)
 
-    if savedKey then
-        -- Valida a key salva na DB do JnKie
-        local ok, result = pcall(function()
-            return Junkie.check_key(savedKey)
-        end)
-        if ok and result and result.valid then
-            -- Key salva ainda válida → pula a GUI
-            getgenv().SCRIPT_KEY = savedKey
-            -- Expõe runtime variables do JnKie
-            if result.is_premium ~= nil then
-                getgenv().JD_IS_PREMIUM = result.is_premium
-            end
-            return true
-        else
-            -- Key salva inválida/expirada → apaga e pede de novo
-            pcall(function() _writefile_ks(KS_CONFIG.saveFile, "") end)
-        end
+    -- Valida key na DB do JnKie
+    local function validateKey(key)
+        local ok2, res = pcall(function() return Junkie.check_key(key) end)
+        return ok2 and res and res.valid, (ok2 and res and (res.message or res.error)) or "Erro de conexão"
     end
 
-    -- Constrói a GUI de key
-    local gui, inputBox, btnValidar, btnGetKey, statusLbl, attemptsLbl =
-        buildKeyGUI()
-
-    local attempts   = 0
-    local validated  = false
-    local validating = false
-
-    local function setStatus(msg, isOk)
-        statusLbl.Text       = msg
-        statusLbl.TextColor3 = isOk
-            and Color3.fromRGB(80, 220, 120)
-            or  Color3.fromRGB(240, 80, 80)
+    -- Fecha a GUI com animação
+    local function closeGUI()
+        tw(container,
+            { Position = UDim2.new(0.5, -240, -1, 0) },
+            0.45, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        tw(blur, { BackgroundTransparency = 1 }, 0.4)
+        task.delay(0.5, function() gui:Destroy() end)
     end
 
-    local function tweenBtn(btn, col)
-        TweenService_ks:Create(btn,
-            TweenInfo.new(0.15, Enum.EasingStyle.Quad),
-            { BackgroundColor3 = col }
-        ):Play()
+    -- Sucesso
+    local function onSuccess(key)
+        validated = true
+        pcall(function() writefile(KS.SaveFile, key) end)
+        getgenv().KARFI_KEY        = key
+        getgenv().KARFI_KEY_VALID  = true
+        setStatus("✓  Key válida! Carregando Karfi Hub...", true)
+        -- Efeito visual de sucesso no input frame
+        tw(inputFrame,  { BackgroundColor3 = Color3.fromRGB(20, 40, 28) }, 0.3)
+        tw(inputStroke, { Color = Color3.fromRGB(60, 200, 100) }, 0.3)
+        tw(fConfirmar,  { BackgroundColor3 = Color3.fromRGB(40, 180, 90) }, 0.3)
+        task.wait(1.4)
+        closeGUI()
     end
 
-    -- Hover effects
-    btnValidar.MouseEnter:Connect(function()
-        if not validating then
-            tweenBtn(btnValidar, Color3.fromRGB(120, 122, 255))
-        end
-    end)
-    btnValidar.MouseLeave:Connect(function()
-        if not validating then
-            tweenBtn(btnValidar, Color3.fromRGB(99, 102, 241))
-        end
-    end)
-    btnGetKey.MouseEnter:Connect(function()
-        tweenBtn(btnGetKey, Color3.fromRGB(40, 44, 65))
-    end)
-    btnGetKey.MouseLeave:Connect(function()
-        tweenBtn(btnGetKey, Color3.fromRGB(32, 34, 48))
-    end)
-
-    -- Botão "Obter Key": pega link do JnKie e copia para clipboard
-    btnGetKey.MouseButton1Click:Connect(function()
-        local ok, link = pcall(function()
-            return Junkie.get_key_link()
-        end)
-        if ok and link then
-            pcall(function() setclipboard(link) end)
-            setStatus("Link copiado! Cole no navegador.", true)
-        else
-            -- Fallback: abre o link configurado manualmente
-            pcall(function() setclipboard(KS_CONFIG.getKeyURL) end)
-            setStatus("Link do Discord copiado!", true)
-        end
-    end)
-
-    -- Botão "Validar Key"
-    btnValidar.MouseButton1Click:Connect(function()
+    -- Botão Confirmar
+    btnConfirmar.MouseButton1Click:Connect(function()
         if validating or validated then return end
-
         local key = inputBox.Text:match("^%s*(.-)%s*$")
-        if not key or #key < 3 then
-            setStatus("Digite uma key válida.", false)
+        if #key < 4 then
+            setStatus("⚠  Insira uma key válida.", false)
             return
         end
 
         validating = true
-        btnValidar.Text = "Verificando..."
-        tweenBtn(btnValidar, Color3.fromRGB(70, 72, 180))
+        btnConfirmar.Text = "⏳  Verificando..."
+        tw(fConfirmar, { BackgroundColor3 = Color3.fromRGB(70, 55, 150) }, 0.2)
 
-        -- Chama a API do JnKie (DB externa)
-        local ok, result = pcall(function()
-            return Junkie.check_key(key)
-        end)
+        local ok2, msg = validateKey(key)
+        attempts += 1
 
-        attempts = attempts + 1
-        attemptsLbl.Text = string.format(
-            "Tentativas: %d / %d", attempts, KS_CONFIG.maxAttempts
-        )
-
-        if ok and result and result.valid then
-            -- ✅ Key válida
-            validated = true
-            setStatus("✓ Key válida! Carregando o hub...", true)
-            btnValidar.Text = "✓ Validado!"
-            tweenBtn(btnValidar, Color3.fromRGB(50, 200, 100))
-
-            -- Salva localmente para não pedir de novo
-            pcall(function() _writefile_ks(KS_CONFIG.saveFile, key) end)
-
-            -- Expõe para o resto do script
-            getgenv().SCRIPT_KEY = key
-            if result.is_premium ~= nil then
-                getgenv().JD_IS_PREMIUM = result.is_premium
-            end
-
-            task.wait(1.2)
-            gui:Destroy()
+        if ok2 then
+            onSuccess(key)
         else
-            -- ❌ Key inválida
             validating = false
-            btnValidar.Text = "Validar Key"
-            tweenBtn(btnValidar, Color3.fromRGB(99, 102, 241))
+            btnConfirmar.Text = "✦  Confirmar"
+            tw(fConfirmar, { BackgroundColor3 = Color3.fromRGB(110, 80, 255) }, 0.2)
 
-            local errMsg = "Key inválida."
-            if ok and result then
-                local m = result.message or result.error or ""
-                if m == "KEY_EXPIRED" then
-                    errMsg = "Key expirada. Renove sua assinatura."
-                elseif m == "HWID_MISMATCH" then
-                    errMsg = "HWID diferente. Contate o suporte."
-                elseif m == "HWID_BANNED" then
-                    errMsg = "Seu HWID está banido."
-                    task.wait(1)
-                    player_ks:Kick("[Karfi Hub] HWID banido.")
-                    return
-                elseif m == "SERVICE_MISMATCH" then
-                    errMsg = "Key de outro serviço."
-                elseif m ~= "" then
-                    errMsg = "Erro: " .. m:sub(1, 50)
-                end
-            end
-            setStatus(errMsg, false)
+            local errMap = {
+                KEY_EXPIRED      = "⛔  Key expirada. Renove sua assinatura.",
+                HWID_MISMATCH    = "⛔  HWID diferente. Contate o suporte.",
+                HWID_BANNED      = "⛔  HWID banido.",
+                SERVICE_MISMATCH = "⛔  Key de outro serviço.",
+            }
+            local display = errMap[msg] or ("⛔  Key inválida. (" .. tostring(msg):sub(1,40) .. ")")
+            setStatus(display, false)
 
-            if attempts >= KS_CONFIG.maxAttempts then
-                setStatus("Muitas tentativas. Encerrando...", false)
-                task.wait(2)
-                player_ks:Kick("[Karfi Hub] Tentativas de key esgotadas.")
+            if msg == "HWID_BANNED" then
+                task.wait(1.5)
+                PL:Kick("[Karfi Hub] HWID banido.")
                 return
+            end
+
+            if attempts >= MAX_TRIES then
+                setStatus("⛔  Muitas tentativas. Encerrando...", false)
+                task.wait(2)
+                PL:Kick("[Karfi Hub] Tentativas de key esgotadas.")
             end
         end
     end)
 
-    -- Aguarda validação (bloqueia o script aqui)
-    while not validated do
-        task.wait(0.1)
+    -- Botão Obter Key
+    btnGetKey.MouseButton1Click:Connect(function()
+        local ok2, link = pcall(function() return Junkie.get_key_link() end)
+        local url = (ok2 and link) or KS.KeyLink
+        pcall(function() setclipboard(url) end)
+        setStatus("🔗  Link copiado! Cole no navegador.", true)
+    end)
+
+    -- Botão Copiar Link
+    btnCopiar.MouseButton1Click:Connect(function()
+        pcall(function() setclipboard(KS.KeyLink) end)
+        setStatus("📋  Link do Discord copiado!", true)
+    end)
+
+    -- Valida key salva automaticamente
+    if savedKey then
+        inputBox.Text = savedKey
+        setStatus("⏳  Verificando key salva...", true)
+        task.delay(0.8, function()
+            local ok2, msg = validateKey(savedKey)
+            if ok2 then
+                onSuccess(savedKey)
+            else
+                pcall(function() writefile(KS.SaveFile, "") end)
+                setStatus("⚠  Key salva inválida/expirada. Insira uma nova.", false)
+                inputBox.Text = ""
+            end
+        end)
     end
 
-    return true
-end
-
--- ── Executa o key system AGORA (bloqueia até validar) ────────────────
-do
-    local ok, err = pcall(runKeySystem)
-    if not ok then
-        warn("[Karfi Hub] Erro no Key System: " .. tostring(err))
-        -- Se o JnKie falhar completamente, encerra o script por segurança
-        game:GetService("Players").LocalPlayer:Kick(
-            "[Karfi Hub] Erro ao conectar ao servidor de keys. Tente novamente."
-        )
-        return
-    end
+    -- Bloqueia o script até validar
+    while not validated do task.wait(0.1) end
 end
 
 -- ─────────────────────────────────────────────────
@@ -401,14 +474,19 @@ local pGui         = player:WaitForChild("PlayerGui")
 
 
 -- ─────────────────────────────────────────────────
--- ─────────────────────────────────────────────────
---  FILESYSTEM SHIM  (reutiliza helpers do key system)
+--  FILESYSTEM SHIM
 -- ─────────────────────────────────────────────────
 
-local _writefile  = _writefile_ks
-local _readfile   = _readfile_ks
-local _makefolder = _getfs_ks("makefolder", function() end)
-local _delfile    = _getfs_ks("delfile",    function() end)
+local function _getfs(name, fallback)
+    local ok, fn = pcall(function() return rawget(_G, name) end)
+    if ok and type(fn) == "function" then return fn end
+    return fallback
+end
+
+local _writefile  = _getfs("writefile",  function() end)
+local _readfile   = _getfs("readfile",   function() return nil end)
+local _makefolder = _getfs("makefolder", function() end)
+local _delfile    = _getfs("delfile",    function() end)
 
 
 -- ─────────────────────────────────────────────────
