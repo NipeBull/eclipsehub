@@ -3,25 +3,389 @@
 --  GUI manual removida e substituída por Rayfield.
 --  Toda a lógica de jogo permanece 100% intacta.
 -- ════════════════════════════════════════════════════════════════════
--- No topo do script
-local AllowedHWIDs = {
-    "SEU_HWID_AQUI",           -- Você
-    -- adicione mais
-}
+-- ════════════════════════════════════════════════════════════════════
+--  KARFI HUB — KEY SYSTEM  (JnKie SDK + DB externa)
+-- ════════════════════════════════════════════════════════════════════
+--
+--  CONFIGURAÇÃO  ← edite APENAS este bloco
+-- ────────────────────────────────────────────────────────────────────
+local KS_CONFIG = {
+    -- ► Coloque aqui o NOME DO SERVIÇO exato do painel JnKie
+    service    = "KarfiHub",
 
-local function GetHWID()
-    return game:GetService("RbxAnalyticsService"):GetClientId()
+    -- ► Coloque aqui o IDENTIFIER (número do serviço no painel JnKie)
+    identifier = "35760",
+
+    -- ► Provider padrão configurado no painel ("Key", "Mixed", etc.)
+    provider   = "Key",
+
+    -- ► Link que aparece no botão "Obter Key" (Discord, loja, etc.)
+    getKeyURL  = "https://discord.gg/bRKJx7EjYa",
+
+    -- ► Máximo de tentativas erradas antes de encerrar
+    maxAttempts = 5,
+
+    -- ► Arquivo local onde a key válida é salva (evita pedir de novo)
+    saveFile   = "karfi_key.txt",
+}
+-- ════════════════════════════════════════════════════════════════════
+--  FIM DA CONFIGURAÇÃO — não edite abaixo desta linha
+-- ════════════════════════════════════════════════════════════════════
+
+-- ── Filesystem helpers (usados pelo key system) ──────────────────────
+local function _getfs_ks(name, fallback)
+    local ok, fn = pcall(function() return rawget(_G, name) end)
+    if ok and type(fn) == "function" then return fn end
+    return fallback
+end
+local _writefile_ks  = _getfs_ks("writefile",  function() end)
+local _readfile_ks   = _getfs_ks("readfile",   function() return nil end)
+local _isfile_ks     = _getfs_ks("isfile",     function() return false end)
+
+-- ── Carrega SDK do JnKie ─────────────────────────────────────────────
+local Junkie = loadstring(game:HttpGet("https://jnkie.com/sdk/library.lua"))()
+Junkie.service    = KS_CONFIG.service
+Junkie.identifier = KS_CONFIG.identifier
+Junkie.provider   = KS_CONFIG.provider
+
+-- ── GUI de Key (Rayfield-style, nativa) ──────────────────────────────
+local TweenService_ks = game:GetService("TweenService")
+local Players_ks      = game:GetService("Players")
+local UIS_ks          = game:GetService("UserInputService")
+local player_ks       = Players_ks.LocalPlayer
+local pGui_ks         = player_ks:WaitForChild("PlayerGui")
+
+local function buildKeyGUI()
+    -- Remove GUI antiga se existir
+    local old = pGui_ks:FindFirstChild("KarfiKeyGui")
+    if old then old:Destroy() end
+
+    local sg = Instance.new("ScreenGui")
+    sg.Name            = "KarfiKeyGui"
+    sg.ResetOnSpawn    = false
+    sg.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+    sg.Parent          = pGui_ks
+
+    -- Fundo escuro
+    local bg = Instance.new("Frame")
+    bg.Size            = UDim2.fromScale(1, 1)
+    bg.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+    bg.BackgroundTransparency = 0.1
+    bg.BorderSizePixel = 0
+    bg.Parent          = sg
+
+    -- Painel central
+    local panel = Instance.new("Frame")
+    panel.Size             = UDim2.fromOffset(440, 280)
+    panel.Position         = UDim2.new(0.5, -220, 0.5, -140)
+    panel.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+    panel.BorderSizePixel  = 0
+    panel.Parent           = bg
+    Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
+
+    -- Borda colorida top
+    local accent = Instance.new("Frame")
+    accent.Size             = UDim2.new(1, 0, 0, 3)
+    accent.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
+    accent.BorderSizePixel  = 0
+    accent.Parent           = panel
+    Instance.new("UICorner", accent).CornerRadius = UDim.new(0, 12)
+
+    -- Título
+    local title = Instance.new("TextLabel")
+    title.Size              = UDim2.new(1, -40, 0, 36)
+    title.Position          = UDim2.fromOffset(20, 18)
+    title.BackgroundTransparency = 1
+    title.Text              = "KARFI HUB  v4.0"
+    title.TextColor3        = Color3.fromRGB(255, 255, 255)
+    title.TextSize          = 20
+    title.Font              = Enum.Font.GothamBold
+    title.TextXAlignment    = Enum.TextXAlignment.Left
+    title.Parent            = panel
+
+    -- Subtítulo
+    local sub = Instance.new("TextLabel")
+    sub.Size              = UDim2.new(1, -40, 0, 20)
+    sub.Position          = UDim2.fromOffset(20, 52)
+    sub.BackgroundTransparency = 1
+    sub.Text              = "Insira sua key de acesso para continuar"
+    sub.TextColor3        = Color3.fromRGB(160, 160, 180)
+    sub.TextSize          = 13
+    sub.Font              = Enum.Font.Gotham
+    sub.TextXAlignment    = Enum.TextXAlignment.Left
+    sub.Parent            = panel
+
+    -- Label status / erro
+    local statusLbl = Instance.new("TextLabel")
+    statusLbl.Size              = UDim2.new(1, -40, 0, 18)
+    statusLbl.Position          = UDim2.fromOffset(20, 76)
+    statusLbl.BackgroundTransparency = 1
+    statusLbl.Text              = ""
+    statusLbl.TextColor3        = Color3.fromRGB(240, 80, 80)
+    statusLbl.TextSize          = 12
+    statusLbl.Font              = Enum.Font.Gotham
+    statusLbl.TextXAlignment    = Enum.TextXAlignment.Left
+    statusLbl.Parent            = panel
+
+    -- Campo de input
+    local inputBg = Instance.new("Frame")
+    inputBg.Size             = UDim2.new(1, -40, 0, 44)
+    inputBg.Position         = UDim2.fromOffset(20, 108)
+    inputBg.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+    inputBg.BorderSizePixel  = 0
+    inputBg.Parent           = panel
+    Instance.new("UICorner", inputBg).CornerRadius = UDim.new(0, 8)
+
+    local inputBox = Instance.new("TextBox")
+    inputBox.Size              = UDim2.new(1, -20, 1, 0)
+    inputBox.Position          = UDim2.fromOffset(10, 0)
+    inputBox.BackgroundTransparency = 1
+    inputBox.Text              = ""
+    inputBox.PlaceholderText   = "Cole sua key aqui..."
+    inputBox.TextColor3        = Color3.fromRGB(230, 230, 255)
+    inputBox.PlaceholderColor3 = Color3.fromRGB(90, 90, 110)
+    inputBox.TextSize          = 14
+    inputBox.Font              = Enum.Font.GothamMono
+    inputBox.ClearTextOnFocus  = false
+    inputBox.Parent            = inputBg
+
+    -- Botão Validar
+    local btnValidar = Instance.new("TextButton")
+    btnValidar.Size             = UDim2.new(0.55, -5, 0, 44)
+    btnValidar.Position         = UDim2.fromOffset(20, 170)
+    btnValidar.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
+    btnValidar.Text             = "Validar Key"
+    btnValidar.TextColor3       = Color3.fromRGB(255, 255, 255)
+    btnValidar.TextSize         = 14
+    btnValidar.Font             = Enum.Font.GothamBold
+    btnValidar.BorderSizePixel  = 0
+    btnValidar.AutoButtonColor  = false
+    btnValidar.Parent           = panel
+    Instance.new("UICorner", btnValidar).CornerRadius = UDim.new(0, 8)
+
+    -- Botão Obter Key
+    local btnGetKey = Instance.new("TextButton")
+    btnGetKey.Size             = UDim2.new(0.45, -15, 0, 44)
+    btnGetKey.Position         = UDim2.new(0.55, 0, 0, 170)
+    btnGetKey.BackgroundColor3 = Color3.fromRGB(32, 34, 48)
+    btnGetKey.Text             = "Obter Key"
+    btnGetKey.TextColor3       = Color3.fromRGB(99, 102, 241)
+    btnGetKey.TextSize         = 14
+    btnGetKey.Font             = Enum.Font.GothamBold
+    btnGetKey.BorderSizePixel  = 0
+    btnGetKey.AutoButtonColor  = false
+    btnGetKey.Parent           = panel
+    Instance.new("UICorner", btnGetKey).CornerRadius = UDim.new(0, 8)
+
+    -- Contador de tentativas
+    local attemptsLbl = Instance.new("TextLabel")
+    attemptsLbl.Size              = UDim2.new(1, -40, 0, 16)
+    attemptsLbl.Position          = UDim2.fromOffset(20, 228)
+    attemptsLbl.BackgroundTransparency = 1
+    attemptsLbl.Text              = ""
+    attemptsLbl.TextColor3        = Color3.fromRGB(100, 100, 120)
+    attemptsLbl.TextSize          = 11
+    attemptsLbl.Font              = Enum.Font.Gotham
+    attemptsLbl.TextXAlignment    = Enum.TextXAlignment.Left
+    attemptsLbl.Parent            = panel
+
+    -- Rodapé
+    local footer = Instance.new("TextLabel")
+    footer.Size              = UDim2.new(1, -40, 0, 16)
+    footer.Position          = UDim2.fromOffset(20, 250)
+    footer.BackgroundTransparency = 1
+    footer.Text              = "Powered by JnKie Key System  •  DB externa"
+    footer.TextColor3        = Color3.fromRGB(55, 55, 70)
+    footer.TextSize          = 10
+    footer.Font              = Enum.Font.Gotham
+    footer.TextXAlignment    = Enum.TextXAlignment.Left
+    footer.Parent            = panel
+
+    return sg, inputBox, btnValidar, btnGetKey, statusLbl, attemptsLbl
 end
 
-local hwid = GetHWID()
+-- ── Lógica de validação ───────────────────────────────────────────────
+local function runKeySystem()
+    -- Tenta carregar key salva localmente
+    local savedKey = nil
+    pcall(function()
+        if _isfile_ks(KS_CONFIG.saveFile) then
+            savedKey = _readfile_ks(KS_CONFIG.saveFile)
+            if savedKey then savedKey = savedKey:match("^%s*(.-)%s*$") end
+            if savedKey == "" then savedKey = nil end
+        end
+    end)
 
-if not table.find(AllowedHWIDs, hwid) then
-    -- Força o JNKIE
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/JnKie/JnKie-KeySystem/main/source.lua"))():Create({
-        Name = "Karfi Hub v4.0",
-        KeyLink = "SEU_LINK_AQUI",
-        HWID = false
-    })
+    if savedKey then
+        -- Valida a key salva na DB do JnKie
+        local ok, result = pcall(function()
+            return Junkie.check_key(savedKey)
+        end)
+        if ok and result and result.valid then
+            -- Key salva ainda válida → pula a GUI
+            getgenv().SCRIPT_KEY = savedKey
+            -- Expõe runtime variables do JnKie
+            if result.is_premium ~= nil then
+                getgenv().JD_IS_PREMIUM = result.is_premium
+            end
+            return true
+        else
+            -- Key salva inválida/expirada → apaga e pede de novo
+            pcall(function() _writefile_ks(KS_CONFIG.saveFile, "") end)
+        end
+    end
+
+    -- Constrói a GUI de key
+    local gui, inputBox, btnValidar, btnGetKey, statusLbl, attemptsLbl =
+        buildKeyGUI()
+
+    local attempts   = 0
+    local validated  = false
+    local validating = false
+
+    local function setStatus(msg, isOk)
+        statusLbl.Text       = msg
+        statusLbl.TextColor3 = isOk
+            and Color3.fromRGB(80, 220, 120)
+            or  Color3.fromRGB(240, 80, 80)
+    end
+
+    local function tweenBtn(btn, col)
+        TweenService_ks:Create(btn,
+            TweenInfo.new(0.15, Enum.EasingStyle.Quad),
+            { BackgroundColor3 = col }
+        ):Play()
+    end
+
+    -- Hover effects
+    btnValidar.MouseEnter:Connect(function()
+        if not validating then
+            tweenBtn(btnValidar, Color3.fromRGB(120, 122, 255))
+        end
+    end)
+    btnValidar.MouseLeave:Connect(function()
+        if not validating then
+            tweenBtn(btnValidar, Color3.fromRGB(99, 102, 241))
+        end
+    end)
+    btnGetKey.MouseEnter:Connect(function()
+        tweenBtn(btnGetKey, Color3.fromRGB(40, 44, 65))
+    end)
+    btnGetKey.MouseLeave:Connect(function()
+        tweenBtn(btnGetKey, Color3.fromRGB(32, 34, 48))
+    end)
+
+    -- Botão "Obter Key": pega link do JnKie e copia para clipboard
+    btnGetKey.MouseButton1Click:Connect(function()
+        local ok, link = pcall(function()
+            return Junkie.get_key_link()
+        end)
+        if ok and link then
+            pcall(function() setclipboard(link) end)
+            setStatus("Link copiado! Cole no navegador.", true)
+        else
+            -- Fallback: abre o link configurado manualmente
+            pcall(function() setclipboard(KS_CONFIG.getKeyURL) end)
+            setStatus("Link do Discord copiado!", true)
+        end
+    end)
+
+    -- Botão "Validar Key"
+    btnValidar.MouseButton1Click:Connect(function()
+        if validating or validated then return end
+
+        local key = inputBox.Text:match("^%s*(.-)%s*$")
+        if not key or #key < 3 then
+            setStatus("Digite uma key válida.", false)
+            return
+        end
+
+        validating = true
+        btnValidar.Text = "Verificando..."
+        tweenBtn(btnValidar, Color3.fromRGB(70, 72, 180))
+
+        -- Chama a API do JnKie (DB externa)
+        local ok, result = pcall(function()
+            return Junkie.check_key(key)
+        end)
+
+        attempts = attempts + 1
+        attemptsLbl.Text = string.format(
+            "Tentativas: %d / %d", attempts, KS_CONFIG.maxAttempts
+        )
+
+        if ok and result and result.valid then
+            -- ✅ Key válida
+            validated = true
+            setStatus("✓ Key válida! Carregando o hub...", true)
+            btnValidar.Text = "✓ Validado!"
+            tweenBtn(btnValidar, Color3.fromRGB(50, 200, 100))
+
+            -- Salva localmente para não pedir de novo
+            pcall(function() _writefile_ks(KS_CONFIG.saveFile, key) end)
+
+            -- Expõe para o resto do script
+            getgenv().SCRIPT_KEY = key
+            if result.is_premium ~= nil then
+                getgenv().JD_IS_PREMIUM = result.is_premium
+            end
+
+            task.wait(1.2)
+            gui:Destroy()
+        else
+            -- ❌ Key inválida
+            validating = false
+            btnValidar.Text = "Validar Key"
+            tweenBtn(btnValidar, Color3.fromRGB(99, 102, 241))
+
+            local errMsg = "Key inválida."
+            if ok and result then
+                local m = result.message or result.error or ""
+                if m == "KEY_EXPIRED" then
+                    errMsg = "Key expirada. Renove sua assinatura."
+                elseif m == "HWID_MISMATCH" then
+                    errMsg = "HWID diferente. Contate o suporte."
+                elseif m == "HWID_BANNED" then
+                    errMsg = "Seu HWID está banido."
+                    task.wait(1)
+                    player_ks:Kick("[Karfi Hub] HWID banido.")
+                    return
+                elseif m == "SERVICE_MISMATCH" then
+                    errMsg = "Key de outro serviço."
+                elseif m ~= "" then
+                    errMsg = "Erro: " .. m:sub(1, 50)
+                end
+            end
+            setStatus(errMsg, false)
+
+            if attempts >= KS_CONFIG.maxAttempts then
+                setStatus("Muitas tentativas. Encerrando...", false)
+                task.wait(2)
+                player_ks:Kick("[Karfi Hub] Tentativas de key esgotadas.")
+                return
+            end
+        end
+    end)
+
+    -- Aguarda validação (bloqueia o script aqui)
+    while not validated do
+        task.wait(0.1)
+    end
+
+    return true
+end
+
+-- ── Executa o key system AGORA (bloqueia até validar) ────────────────
+do
+    local ok, err = pcall(runKeySystem)
+    if not ok then
+        warn("[Karfi Hub] Erro no Key System: " .. tostring(err))
+        -- Se o JnKie falhar completamente, encerra o script por segurança
+        game:GetService("Players").LocalPlayer:Kick(
+            "[Karfi Hub] Erro ao conectar ao servidor de keys. Tente novamente."
+        )
+        return
+    end
 end
 
 -- ─────────────────────────────────────────────────
@@ -37,19 +401,14 @@ local pGui         = player:WaitForChild("PlayerGui")
 
 
 -- ─────────────────────────────────────────────────
---  FILESYSTEM SHIM
+-- ─────────────────────────────────────────────────
+--  FILESYSTEM SHIM  (reutiliza helpers do key system)
 -- ─────────────────────────────────────────────────
 
-local function _getfs(name, fallback)
-    local ok, fn = pcall(function() return rawget(_G, name) end)
-    if ok and type(fn) == "function" then return fn end
-    return fallback
-end
-
-local _writefile  = _getfs("writefile",  function() end)
-local _readfile   = _getfs("readfile",   function() return nil end)
-local _makefolder = _getfs("makefolder", function() end)
-local _delfile    = _getfs("delfile",    function() end)
+local _writefile  = _writefile_ks
+local _readfile   = _readfile_ks
+local _makefolder = _getfs_ks("makefolder", function() end)
+local _delfile    = _getfs_ks("delfile",    function() end)
 
 
 -- ─────────────────────────────────────────────────
@@ -316,6 +675,8 @@ local Window = Rayfield:CreateWindow({
         Enabled    = false,
     },
 
+    -- KeySystem desativado no Rayfield: a validação é feita
+    -- pelo JnKie Key System no bloco acima (DB externa, keys pagas).
     KeySystem = false,
 })
 
