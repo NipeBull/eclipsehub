@@ -3,6 +3,26 @@
 --  GUI manual removida e substituída por Rayfield.
 --  Toda a lógica de jogo permanece 100% intacta.
 -- ════════════════════════════════════════════════════════════════════
+-- No topo do script
+local AllowedHWIDs = {
+    "SEU_HWID_AQUI",           -- Você
+    -- adicione mais
+}
+
+local function GetHWID()
+    return game:GetService("RbxAnalyticsService"):GetClientId()
+end
+
+local hwid = GetHWID()
+
+if not table.find(AllowedHWIDs, hwid) then
+    -- Força o JNKIE
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/JnKie/JnKie-KeySystem/main/source.lua"))():Create({
+        Name = "Karfi Hub v4.0",
+        KeyLink = "SEU_LINK_AQUI",
+        HWID = false
+    })
+end
 
 -- ─────────────────────────────────────────────────
 --  SERVIÇOS
@@ -528,13 +548,10 @@ end
 
 -- ── Ima toggle references (mantidos para Delivery Farm) ──
 
-local afStatus  = { Text = "Desativado" }  -- proxy leve (label virtual)
+local afStatus  = { Text = "Desativado" }
 local afKnob    = nil
 local afTrack   = nil
 local afAccent  = nil
-
--- O Rayfield não tem "labels de status" dinâmicos no widget,
--- mas mantemos as variáveis para compatibilidade com pararIma / iniciarIma.
 
 local function pararIma()
     if not AF.imaAtivo then return end
@@ -1562,24 +1579,3 @@ end)
 -- ════════════════════════════════════════════════════════════════════
 
 print("KARFI HUB [RAYFIELD] 100% Carregado | Profiles em: " .. CFG_FOLDER)
-
--- ════════════════════════════════════════════════════════════════════
---  COMO ADICIONAR NOVOS JOGOS RAPIDAMENTE
---  ─────────────────────────────────────────────────────────────────
---  1. Encontre a tabela TELEPORT_DESTINATIONS (linha ~97) e adicione:
---       { label = "Nome do Local", pos = Vector3.new(X, Y, Z) },
---     O botão aparece automaticamente na aba TP.
---
---  2. Para suportar Delivery Farm no novo local, adicione também em
---     DELIVERY_COORDS:
---       ["Nome do Local"] = Vector3.new(X, Y, Z),
---
---  3. Para adicionar valores de veículo de um jogo diferente, crie
---     uma nova tabela (ex: NOVO_JOGO_VALUES) no mesmo formato de
---     VALUES / TUNE_VALUES e chame makeTab() — ou simplesmente
---     use o Rayfield diretamente abaixo desse comentário:
---
---       local TabNovoJogo = Window:CreateTab("NovoJogo", 4483362458)
---       TabNovoJogo:CreateSection("Titulo da Secao")
---       TabNovoJogo:CreateInput({ Name = "Meu Valor", ... Callback = ... })
--- ════════════════════════════════════════════════════════════════════
