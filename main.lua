@@ -45,7 +45,6 @@ local Window = Rayfield:CreateWindow({
         FolderName = "UniversalHub",
         FileName   = "UniversalHub_Config",
     },
-    KeySystem = false,
 })
 
 -- ═════════════════════════════════════════════════════════════════════
@@ -771,8 +770,8 @@ do
     }
 
     -- ── Helper: cria input + botão SET ──────────
-    local function makeValueInput(section, cfg)
-        local inp = section:CreateInput({
+    local function makeValueInput(tab, cfg)
+        local inp = tab:CreateInput({
             Name            = cfg.label,
             PlaceholderText = cfg.placeholder or "Digite o valor...",
             NumbersOnly     = true,
@@ -793,7 +792,7 @@ do
 
     -- ── SEÇÃO: Líquidos & Gerais ─────────────────
     local SecLiquidos = MBTab:CreateSection("⛽  Líquidos & Gerais")
-    for _, v in ipairs(VALUES) do makeValueInput(SecLiquidos, v) end
+    for _, v in ipairs(VALUES) do makeValueInput(MBTab, v) end
 
     MBTab:CreateButton({
         Name     = "✅  Aplicar Todos (Líquidos)",
@@ -811,7 +810,7 @@ do
 
     -- ── SEÇÃO: Tune / Turbo ──────────────────────
     local SecTune = MBTab:CreateSection("🌀  Tune & Turbo")
-    for _, v in ipairs(TUNE_VALUES) do makeValueInput(SecTune, v) end
+    for _, v in ipairs(TUNE_VALUES) do makeValueInput(MBTab, v) end
 
     MBTab:CreateButton({
         Name     = "✅  Aplicar Todos (Tune)",
@@ -829,7 +828,7 @@ do
 
     -- ── SEÇÃO: Cambagem & Aerodinâmica ──────────
     local SecMisc = MBTab:CreateSection("🔩  Cambagem & Aerodinâmica")
-    for _, v in ipairs(MISC_VALUES) do makeValueInput(SecMisc, v) end
+    for _, v in ipairs(MISC_VALUES) do makeValueInput(MBTab, v) end
 
     MBTab:CreateButton({
         Name     = "✅  Aplicar Todos (Misc)",
@@ -968,7 +967,7 @@ do
     local profileDropdown = MBTab:CreateDropdown({
         Name     = "📂  Perfis Salvos",
         Options  = readIndex(),
-        CurrentOption = {},
+        CurrentOption = "",
         Flag     = "MB_ProfileDropdown",
         Callback = function(selected)
             if type(selected) == "table" then selected = selected[1] end
@@ -984,7 +983,7 @@ do
 
     local function refreshDropdown()
         local list = readIndex()
-        pcall(function() profileDropdown:Refresh(list, {}) end)
+        pcall(function() profileDropdown:Refresh(list, "") end)
     end
 
     MBTab:CreateButton({
