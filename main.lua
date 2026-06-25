@@ -426,12 +426,11 @@ do
         end)
     end
 
-    -- Bloqueia o script até validar
-    while not validated do task.wait(0.1) end
-end
--- ════════════════════════════════════════════════════════════════════
---  FIM DO KEY SYSTEM
--- ════════════════════════════════════════════════════════════════════
+    -- Quando validado, dispara o restante do script numa nova thread
+    local function lancarHub()
+        -- ════════════════════════════════════════════════════════════
+        --  TUDO ABAIXO RODA APÓS A KEY SER VALIDADA
+        -- ════════════════════════════════════════════════════════════
 
 
 
@@ -1931,8 +1930,15 @@ UIS.InputBegan:Connect(function(inp, gpe)
 end)
 
 
--- ════════════════════════════════════════════════════════════════════
---  FINALIZAÇÃO
--- ════════════════════════════════════════════════════════════════════
+        -- ════════════════════════════════════════════════════════════
+        --  FINALIZAÇÃO
+        -- ════════════════════════════════════════════════════════════
+        print("KARFI HUB [RAYFIELD] 100% Carregado | Profiles em: " .. CFG_FOLDER)
+    end -- fim de lancarHub()
 
-print("KARFI HUB [RAYFIELD] 100% Carregado | Profiles em: " .. CFG_FOLDER)
+    -- Aguarda validação numa thread separada, depois lança o hub
+    task.spawn(function()
+        while not validated do task.wait(0.05) end
+        lancarHub()
+    end)
+end -- fim do do..end do key system
