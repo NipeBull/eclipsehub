@@ -1,8 +1,439 @@
 -- ════════════════════════════════════════════════════════════════════
 --  KARFI HUB  v4.0  —  LocalScript  [RAYFIELD EDITION]
---  GUI manual removida e substituída por Rayfield.
---  Toda a lógica de jogo permanece 100% intacta.
 -- ════════════════════════════════════════════════════════════════════
+
+-- ════════════════════════════════════════════════════════════════════
+--  KEY SYSTEM  ——  GUI Customizada + JnKie DB
+--  Edite apenas este bloco
+-- ════════════════════════════════════════════════════════════════════
+local KS = {
+    KeyLink    = "https://discord.gg/bRKJx7EjYa",
+    Service    = "KarfiHub",
+    Identifier = "35760",
+    SaveFile   = "KarfiHub_key.txt",
+}
+
+do
+    local TW  = game:GetService("TweenService")
+    local PL  = game:GetService("Players").LocalPlayer
+    local SG  = PL:WaitForChild("PlayerGui")
+
+    -- Filesystem helpers
+    local function _fs(n, fb)
+        local ok, f = pcall(function() return rawget(_G, n) end)
+        return (ok and type(f) == "function") and f or fb
+    end
+    local writefile = _fs("writefile",  function() end)
+    local readfile  = _fs("readfile",   function() return "" end)
+    local isfile    = _fs("isfile",     function() return false end)
+
+    -- Carrega JnKie SDK
+    local Junkie = loadstring(game:HttpGet("https://jnkie.com/sdk/library.lua"))()
+    Junkie.service    = KS.Service
+    Junkie.identifier = KS.Identifier
+    Junkie.provider   = "Key"
+
+    -- Tween helper
+    local function tw(obj, props, t, style, dir)
+        TW:Create(obj, TweenInfo.new(
+            t or 0.25,
+            style or Enum.EasingStyle.Quint,
+            dir   or Enum.EasingDirection.Out
+        ), props):Play()
+    end
+
+    -- Constrói a GUI
+    local old = SG:FindFirstChild("KarfiKeySystem")
+    if old then old:Destroy() end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name           = "KarfiKeySystem"
+    gui.ResetOnSpawn   = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.DisplayOrder   = 999
+    gui.Parent         = SG
+
+    local blur = Instance.new("Frame")
+    blur.Size                   = UDim2.fromScale(1, 1)
+    blur.BackgroundColor3       = Color3.fromRGB(5, 5, 10)
+    blur.BackgroundTransparency = 0.35
+    blur.BorderSizePixel        = 0
+    blur.ZIndex                 = 1
+    blur.Parent                 = gui
+
+    local container = Instance.new("Frame")
+    container.Name                  = "Container"
+    container.Size                  = UDim2.fromOffset(480, 320)
+    container.Position              = UDim2.new(0.5, -240, 1.5, 0)
+    container.BackgroundColor3      = Color3.fromRGB(13, 13, 20)
+    container.BorderSizePixel       = 0
+    container.ZIndex                = 2
+    container.Parent                = gui
+    Instance.new("UICorner", container).CornerRadius = UDim.new(0, 14)
+
+    local shadow = Instance.new("Frame")
+    shadow.Size                   = UDim2.new(1, 16, 1, 16)
+    shadow.Position               = UDim2.new(0, -8, 0, 8)
+    shadow.BackgroundColor3       = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.55
+    shadow.BorderSizePixel        = 0
+    shadow.ZIndex                 = 1
+    shadow.Parent                 = container
+    Instance.new("UICorner", shadow).CornerRadius = UDim.new(0, 18)
+
+    local accentBar = Instance.new("Frame")
+    accentBar.Size             = UDim2.new(0, 4, 1, -28)
+    accentBar.Position         = UDim2.fromOffset(0, 14)
+    accentBar.BackgroundColor3 = Color3.fromRGB(110, 80, 255)
+    accentBar.BorderSizePixel  = 0
+    accentBar.ZIndex           = 3
+    accentBar.Parent           = container
+    Instance.new("UICorner", accentBar).CornerRadius = UDim.new(0, 4)
+
+    local accentGrad = Instance.new("UIGradient")
+    accentGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(110, 80, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 80, 180)),
+    })
+    accentGrad.Rotation = 90
+    accentGrad.Parent   = accentBar
+
+    local logo = Instance.new("TextLabel")
+    logo.Size                   = UDim2.new(1, -30, 0, 38)
+    logo.Position               = UDim2.fromOffset(20, 18)
+    logo.BackgroundTransparency = 1
+    logo.Text                   = "KARFI  HUB"
+    logo.TextColor3             = Color3.fromRGB(255, 255, 255)
+    logo.TextSize               = 26
+    logo.Font                   = Enum.Font.GothamBold
+    logo.TextXAlignment         = Enum.TextXAlignment.Left
+    logo.ZIndex                 = 4
+    logo.Parent                 = container
+
+    local badge = Instance.new("Frame")
+    badge.Size             = UDim2.fromOffset(42, 20)
+    badge.Position         = UDim2.fromOffset(162, 24)
+    badge.BackgroundColor3 = Color3.fromRGB(110, 80, 255)
+    badge.BorderSizePixel  = 0
+    badge.ZIndex           = 4
+    badge.Parent           = container
+    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
+
+    local badgeTxt = Instance.new("TextLabel")
+    badgeTxt.Size                   = UDim2.fromScale(1, 1)
+    badgeTxt.BackgroundTransparency = 1
+    badgeTxt.Text                   = "v4.0"
+    badgeTxt.TextColor3             = Color3.fromRGB(255, 255, 255)
+    badgeTxt.TextSize               = 11
+    badgeTxt.Font                   = Enum.Font.GothamBold
+    badgeTxt.ZIndex                 = 5
+    badgeTxt.Parent                 = badge
+
+    local sub = Instance.new("TextLabel")
+    sub.Size                   = UDim2.new(1, -30, 0, 18)
+    sub.Position               = UDim2.fromOffset(20, 58)
+    sub.BackgroundTransparency = 1
+    sub.Text                   = "Autenticação necessária para continuar"
+    sub.TextColor3             = Color3.fromRGB(120, 115, 150)
+    sub.TextSize               = 13
+    sub.Font                   = Enum.Font.Gotham
+    sub.TextXAlignment         = Enum.TextXAlignment.Left
+    sub.ZIndex                 = 4
+    sub.Parent                 = container
+
+    local divider = Instance.new("Frame")
+    divider.Size             = UDim2.new(1, -30, 0, 1)
+    divider.Position         = UDim2.fromOffset(20, 85)
+    divider.BackgroundColor3 = Color3.fromRGB(35, 33, 50)
+    divider.BorderSizePixel  = 0
+    divider.ZIndex           = 4
+    divider.Parent           = container
+
+    local inputLabel = Instance.new("TextLabel")
+    inputLabel.Size                   = UDim2.new(1, -30, 0, 16)
+    inputLabel.Position               = UDim2.fromOffset(20, 100)
+    inputLabel.BackgroundTransparency = 1
+    inputLabel.Text                   = "SUA KEY"
+    inputLabel.TextColor3             = Color3.fromRGB(110, 80, 255)
+    inputLabel.TextSize               = 11
+    inputLabel.Font                   = Enum.Font.GothamBold
+    inputLabel.TextXAlignment         = Enum.TextXAlignment.Left
+    inputLabel.ZIndex                 = 4
+    inputLabel.Parent                 = container
+
+    local inputFrame = Instance.new("Frame")
+    inputFrame.Name             = "InputFrame"
+    inputFrame.Size             = UDim2.new(1, -30, 0, 46)
+    inputFrame.Position         = UDim2.fromOffset(20, 120)
+    inputFrame.BackgroundColor3 = Color3.fromRGB(22, 20, 33)
+    inputFrame.BorderSizePixel  = 0
+    inputFrame.ZIndex           = 4
+    inputFrame.Parent           = container
+    Instance.new("UICorner", inputFrame).CornerRadius = UDim.new(0, 10)
+
+    local inputStroke = Instance.new("UIStroke")
+    inputStroke.Color           = Color3.fromRGB(45, 40, 70)
+    inputStroke.Thickness       = 1.5
+    inputStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    inputStroke.Parent          = inputFrame
+
+    local lockIcon = Instance.new("TextLabel")
+    lockIcon.Size                   = UDim2.fromOffset(30, 46)
+    lockIcon.Position               = UDim2.fromOffset(10, 0)
+    lockIcon.BackgroundTransparency = 1
+    lockIcon.Text                   = "🔑"
+    lockIcon.TextSize               = 16
+    lockIcon.Font                   = Enum.Font.Gotham
+    lockIcon.ZIndex                 = 5
+    lockIcon.Parent                 = inputFrame
+
+    local inputBox = Instance.new("TextBox")
+    inputBox.Name                = "Input"
+    inputBox.Size                = UDim2.new(1, -50, 1, 0)
+    inputBox.Position            = UDim2.fromOffset(40, 0)
+    inputBox.BackgroundTransparency = 1
+    inputBox.Text                = ""
+    inputBox.PlaceholderText     = "Cole sua key aqui..."
+    inputBox.TextColor3          = Color3.fromRGB(220, 215, 255)
+    inputBox.PlaceholderColor3   = Color3.fromRGB(70, 65, 100)
+    inputBox.TextSize            = 14
+    inputBox.Font                = Enum.Font.GothamMono
+    inputBox.ClearTextOnFocus    = false
+    inputBox.TextXAlignment      = Enum.TextXAlignment.Left
+    inputBox.ZIndex              = 5
+    inputBox.Parent              = inputFrame
+
+    inputBox.Focused:Connect(function()
+        tw(inputStroke, { Color = Color3.fromRGB(110, 80, 255) }, 0.2)
+    end)
+    inputBox.FocusLost:Connect(function()
+        tw(inputStroke, { Color = Color3.fromRGB(45, 40, 70) }, 0.2)
+    end)
+
+    local statusLbl = Instance.new("TextLabel")
+    statusLbl.Name                   = "Status"
+    statusLbl.Size                   = UDim2.new(1, -30, 0, 18)
+    statusLbl.Position               = UDim2.fromOffset(20, 172)
+    statusLbl.BackgroundTransparency = 1
+    statusLbl.Text                   = ""
+    statusLbl.TextColor3             = Color3.fromRGB(200, 70, 70)
+    statusLbl.TextSize               = 12
+    statusLbl.Font                   = Enum.Font.Gotham
+    statusLbl.TextXAlignment         = Enum.TextXAlignment.Left
+    statusLbl.ZIndex                 = 4
+    statusLbl.Parent                 = container
+
+    -- Botão helper
+    local function makeBtn(label, emoji, x, w, isPrimary)
+        local f = Instance.new("Frame")
+        f.Size             = UDim2.fromOffset(w, 46)
+        f.Position         = UDim2.fromOffset(x, 196)
+        f.BackgroundColor3 = isPrimary
+            and Color3.fromRGB(110, 80, 255)
+            or  Color3.fromRGB(22, 20, 33)
+        f.BorderSizePixel  = 0
+        f.ZIndex           = 4
+        f.Parent           = container
+        Instance.new("UICorner", f).CornerRadius = UDim.new(0, 10)
+
+        if not isPrimary then
+            local st = Instance.new("UIStroke")
+            st.Color           = Color3.fromRGB(45, 40, 70)
+            st.Thickness       = 1.5
+            st.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            st.Parent          = f
+        else
+            local g = Instance.new("UIGradient")
+            g.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(130, 90, 255)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 70, 200)),
+            })
+            g.Rotation = 45
+            g.Parent   = f
+        end
+
+        local btn = Instance.new("TextButton")
+        btn.Size                   = UDim2.fromScale(1, 1)
+        btn.BackgroundTransparency = 1
+        btn.Text                   = emoji .. "  " .. label
+        btn.TextColor3             = Color3.fromRGB(255, 255, 255)
+        btn.TextSize               = 13
+        btn.Font                   = Enum.Font.GothamBold
+        btn.ZIndex                 = 5
+        btn.Parent                 = f
+
+        btn.MouseEnter:Connect(function()
+            tw(f, { BackgroundColor3 = isPrimary
+                and Color3.fromRGB(140, 105, 255)
+                or  Color3.fromRGB(32, 29, 48) }, 0.15)
+            tw(f, { Size     = UDim2.fromOffset(w, 49)     }, 0.12)
+            tw(f, { Position = UDim2.fromOffset(x, 194)    }, 0.12)
+        end)
+        btn.MouseLeave:Connect(function()
+            tw(f, { BackgroundColor3 = isPrimary
+                and Color3.fromRGB(110, 80, 255)
+                or  Color3.fromRGB(22, 20, 33) }, 0.15)
+            tw(f, { Size     = UDim2.fromOffset(w, 46)     }, 0.12)
+            tw(f, { Position = UDim2.fromOffset(x, 196)    }, 0.12)
+        end)
+
+        return btn, f
+    end
+
+    local btnConfirmar, fConfirmar = makeBtn("Confirmar",   "✦", 20,  218, true)
+    local btnGetKey,   _           = makeBtn("Obter Key",   "🔗", 248, 110, false)
+    local btnCopiar,   _           = makeBtn("Copiar Link", "📋", 368, 92,  false)
+
+    local footer = Instance.new("TextLabel")
+    footer.Size                   = UDim2.new(1, -30, 0, 16)
+    footer.Position               = UDim2.fromOffset(20, 294)
+    footer.BackgroundTransparency = 1
+    footer.Text                   = "Powered by JnKie  •  HWID vinculado  •  karfihub"
+    footer.TextColor3             = Color3.fromRGB(45, 42, 65)
+    footer.TextSize               = 10
+    footer.Font                   = Enum.Font.Gotham
+    footer.TextXAlignment         = Enum.TextXAlignment.Left
+    footer.ZIndex                 = 4
+    footer.Parent                 = container
+
+    -- Animação de entrada
+    task.delay(0.05, function()
+        tw(container,
+            { Position = UDim2.new(0.5, -240, 0.5, -160) },
+            0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    end)
+
+    -- Lógica
+    local validated  = false
+    local validating = false
+    local attempts   = 0
+    local MAX_TRIES  = 5
+
+    local function setStatus(msg, ok)
+        statusLbl.Text       = msg
+        statusLbl.TextColor3 = ok
+            and Color3.fromRGB(80, 220, 130)
+            or  Color3.fromRGB(220, 70, 70)
+    end
+
+    local savedKey = nil
+    pcall(function()
+        if isfile(KS.SaveFile) then
+            local raw = readfile(KS.SaveFile) or ""
+            savedKey  = raw:match("^%s*(.-)%s*$")
+            if savedKey == "" then savedKey = nil end
+        end
+    end)
+
+    local function validateKey(key)
+        local ok2, res = pcall(function() return Junkie.check_key(key) end)
+        return ok2 and res and res.valid,
+               (ok2 and res and (res.message or res.error)) or "Erro de conexão"
+    end
+
+    local function closeGUI()
+        tw(container,
+            { Position = UDim2.new(0.5, -240, -1, 0) },
+            0.45, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        tw(blur, { BackgroundTransparency = 1 }, 0.4)
+        task.delay(0.5, function() gui:Destroy() end)
+    end
+
+    local function onSuccess(key)
+        validated = true
+        pcall(function() writefile(KS.SaveFile, key) end)
+        getgenv().KARFI_KEY       = key
+        getgenv().KARFI_KEY_VALID = true
+        setStatus("✓  Key válida! Carregando Karfi Hub...", true)
+        tw(inputFrame,  { BackgroundColor3 = Color3.fromRGB(20, 40, 28) }, 0.3)
+        tw(inputStroke, { Color = Color3.fromRGB(60, 200, 100) }, 0.3)
+        tw(fConfirmar,  { BackgroundColor3 = Color3.fromRGB(40, 180, 90) }, 0.3)
+        task.wait(1.4)
+        closeGUI()
+    end
+
+    btnConfirmar.MouseButton1Click:Connect(function()
+        if validating or validated then return end
+        local key = inputBox.Text:match("^%s*(.-)%s*$")
+        if #key < 4 then
+            setStatus("⚠  Insira uma key válida.", false)
+            return
+        end
+
+        validating        = true
+        btnConfirmar.Text = "⏳  Verificando..."
+        tw(fConfirmar, { BackgroundColor3 = Color3.fromRGB(70, 55, 150) }, 0.2)
+
+        local ok2, msg = validateKey(key)
+        attempts += 1
+
+        if ok2 then
+            onSuccess(key)
+        else
+            validating        = false
+            btnConfirmar.Text = "✦  Confirmar"
+            tw(fConfirmar, { BackgroundColor3 = Color3.fromRGB(110, 80, 255) }, 0.2)
+
+            local errMap = {
+                KEY_EXPIRED      = "⛔  Key expirada. Renove sua assinatura.",
+                HWID_MISMATCH    = "⛔  HWID diferente. Contate o suporte.",
+                HWID_BANNED      = "⛔  HWID banido.",
+                SERVICE_MISMATCH = "⛔  Key de outro serviço.",
+            }
+            local display = errMap[msg]
+                or ("⛔  Key inválida. (" .. tostring(msg):sub(1, 40) .. ")")
+            setStatus(display, false)
+
+            if msg == "HWID_BANNED" then
+                task.wait(1.5)
+                PL:Kick("[Karfi Hub] HWID banido.")
+                return
+            end
+
+            if attempts >= MAX_TRIES then
+                setStatus("⛔  Muitas tentativas. Encerrando...", false)
+                task.wait(2)
+                PL:Kick("[Karfi Hub] Tentativas de key esgotadas.")
+            end
+        end
+    end)
+
+    btnGetKey.MouseButton1Click:Connect(function()
+        local ok2, link = pcall(function() return Junkie.get_key_link() end)
+        local url = (ok2 and link) or KS.KeyLink
+        pcall(function() setclipboard(url) end)
+        setStatus("🔗  Link copiado! Cole no navegador.", true)
+    end)
+
+    btnCopiar.MouseButton1Click:Connect(function()
+        pcall(function() setclipboard(KS.KeyLink) end)
+        setStatus("📋  Link do Discord copiado!", true)
+    end)
+
+    -- Valida key salva automaticamente
+    if savedKey then
+        inputBox.Text = savedKey
+        setStatus("⏳  Verificando key salva...", true)
+        task.delay(0.8, function()
+            local ok2, msg = validateKey(savedKey)
+            if ok2 then
+                onSuccess(savedKey)
+            else
+                pcall(function() writefile(KS.SaveFile, "") end)
+                setStatus("⚠  Key salva expirada. Insira uma nova.", false)
+                inputBox.Text = ""
+            end
+        end)
+    end
+
+    -- Bloqueia o script até validar
+    while not validated do task.wait(0.1) end
+end
+-- ════════════════════════════════════════════════════════════════════
+--  FIM DO KEY SYSTEM
+-- ════════════════════════════════════════════════════════════════════
+
+
 
 -- ─────────────────────────────────────────────────
 --  SERVIÇOS
@@ -320,8 +751,6 @@ end
 
 local TabMisc = Window:CreateTab("Misc", 4483362458)
 
--- ── Seção: Config Extras ─────────────────────────
-
 TabMisc:CreateSection("Config Extras — Liquidos e Combustivel")
 
 for _, v in ipairs(VALUES) do
@@ -353,7 +782,6 @@ TabMisc:CreateButton({
             notify("Erro", "Seu carro nao esta spawnado!", 3)
             return
         end
-        -- lê os valores dos inputs via _lastApplied (aplicados individualmente)
         local count = 0
         for _, v in ipairs(VALUES) do
             local val = _lastApplied[v.name]
@@ -362,8 +790,6 @@ TabMisc:CreateButton({
         notify("OK", count .. " valores aplicados!", 2)
     end,
 })
-
--- ── Seção: Config Gerais ─────────────────────────
 
 TabMisc:CreateSection("Config Gerais — Cambagem, Ignicao e Aerodinamica")
 
@@ -454,8 +880,6 @@ TabTune:CreateButton({
     end,
 })
 
--- ── Seção: Pneus ─────────────────────────────────
-
 TabTune:CreateSection("Tipo de Pneu  —  Slick | Smooth | Drag")
 
 local TIRE_TYPES = {
@@ -486,8 +910,6 @@ end
 -- ═══════════════════════════════════════════════════════════════════
 
 local TabAF = Window:CreateTab("AutoFarm", 4483362458)
-
--- ── Cache TranspBox ──────────────────────────────
 
 local _transpBoxCache = {}
 
@@ -526,12 +948,7 @@ local function encontrarMinhasCaixas()
     return caixas
 end
 
--- ── Ima toggle references (mantidos para Delivery Farm) ──
-
 local afStatus  = { Text = "Desativado" }
-local afKnob    = nil
-local afTrack   = nil
-local afAccent  = nil
 
 local function pararIma()
     if not AF.imaAtivo then return end
@@ -624,14 +1041,8 @@ local function iniciarIma()
 end
 
 local function toggleIma()
-    if AF.imaAtivo then
-        pararIma()
-    else
-        iniciarIma()
-    end
+    if AF.imaAtivo then pararIma() else iniciarIma() end
 end
-
--- ── Seção: Imã de Caixas ─────────────────────────
 
 TabAF:CreateSection("Ima de Caixas — Puxa suas caixas automaticamente")
 
@@ -640,19 +1051,12 @@ TabAF:CreateToggle({
     CurrentValue = false,
     Flag         = "ImaToggle",
     Callback     = function(Value)
-        if Value then
-            iniciarIma()
-        else
-            pararIma()
-        end
+        if Value then iniciarIma() else pararIma() end
     end,
 })
 
--- ── Seção: Delivery Farm ─────────────────────────
-
 TabAF:CreateSection("Auto Entrega — Delivery Farm")
 
--- Variáveis do Delivery Farm
 local deliveryFarmAtivo  = false
 local deliveryFarmThread = nil
 
@@ -1054,7 +1458,6 @@ TabAF:CreateParagraph({
     Content = "Vai ao ponto de coleta → pega a melhor entrega → ativa Ima → entrega → repete automaticamente.",
 })
 
--- Para Delivery Farm ao respawnar
 player.CharacterAdded:Connect(function()
     pcall(function()
         if deliveryFarmAtivo then
@@ -1068,7 +1471,6 @@ player.CharacterAdded:Connect(function()
     end)
 end)
 
--- Tecla H: toggle imã
 UIS.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.H then toggleIma() end
@@ -1083,7 +1485,6 @@ local TabTP = Window:CreateTab("TP", 4483362458)
 
 TabTP:CreateSection("Teleportes — Viaje rapidamente para qualquer local")
 
--- Função de teleporte suavizado (anti-cheat friendly)
 local function doTeleport(destino)
     local character = player.Character or player.CharacterAdded:Wait()
     local hrp       = character:FindFirstChild("HumanoidRootPart")
@@ -1136,12 +1537,6 @@ for _, dest in ipairs(TELEPORT_DESTINATIONS) do
     })
 end
 
--- ─────────────────────────────────────────────────
---  ADICIONAR NOVOS JOGOS / DESTINOS AQUI
---  Basta inserir mais entradas em TELEPORT_DESTINATIONS
---  acima e elas aparecerão automaticamente como botões.
--- ─────────────────────────────────────────────────
-
 
 -- ═══════════════════════════════════════════════════════════════════
 --  ABA: CONFIG
@@ -1149,16 +1544,14 @@ end
 
 local TabConfig = Window:CreateTab("Config", 4483362458)
 
--- ── Keybind ──────────────────────────────────────
-
 TabConfig:CreateSection("Tecla de Toggle da GUI")
 
 TabConfig:CreateKeybind({
-    Name         = "Tecla de Toggle",
+    Name           = "Tecla de Toggle",
     CurrentKeybind = "RightShift",
     HoldToInteract = false,
-    Flag         = "GuiToggleKey",
-    Callback     = function(Keybind)
+    Flag           = "GuiToggleKey",
+    Callback       = function(Keybind)
         local kc = Enum.KeyCode[Keybind]
         if kc then
             AF.togllekey = kc
@@ -1167,12 +1560,9 @@ TabConfig:CreateKeybind({
     end,
 })
 
--- ── Velocidade do Dash ───────────────────────────
-
 TabConfig:CreateSection("Dash")
 
 local dashSpeed = 80
-local spInpRef  = nil   -- proxy
 
 TabConfig:CreateSlider({
     Name         = "Velocidade do Dash",
@@ -1186,7 +1576,6 @@ TabConfig:CreateSlider({
     end,
 })
 
--- Dash (tecla X) — mesma lógica original
 UIS.InputBegan:Connect(function(inp, gpe)
     if gpe then return end
     if inp.KeyCode == Enum.KeyCode.X then
@@ -1208,8 +1597,6 @@ UIS.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
--- ── Notificações de Status ────────────────────────
-
 TabConfig:CreateSection("Preferencias")
 
 TabConfig:CreateToggle({
@@ -1223,8 +1610,6 @@ TabConfig:CreateToggle({
         end
     end,
 })
-
--- ── Auto-Reaplicar ───────────────────────────────
 
 TabConfig:CreateToggle({
     Name         = "Auto-Reaplicar Valores",
@@ -1255,13 +1640,11 @@ TabConfig:CreateToggle({
     end,
 })
 
--- ── Modo Anônimo ─────────────────────────────────
-
 TabConfig:CreateSection("Modo Anonimo")
 
 do
-    local _realName  = player.Name
-    local _anonName  = "Anonymous"
+    local _realName    = player.Name
+    local _anonName    = "Anonymous"
     local _anonActive2 = false
     local _anonConns2  = {}
 
@@ -1338,8 +1721,6 @@ do
         end,
     })
 end
-
--- ── Perfis (Save/Load) ───────────────────────────
 
 TabConfig:CreateSection("Perfis — Salvar e Carregar Configuracoes")
 
@@ -1459,7 +1840,6 @@ local function deleteProfile(name)
     removeFromIndex(name)
 end
 
--- Input para nome do perfil
 local currentProfileName = ""
 
 TabConfig:CreateInput({
@@ -1530,7 +1910,6 @@ TabConfig:CreateButton({
     end,
 })
 
--- Carrega o primeiro perfil automaticamente
 task.delay(0.5, function()
     local profiles = readIndex()
     if #profiles > 0 then
@@ -1547,8 +1926,6 @@ end)
 UIS.InputBegan:Connect(function(inp, gpe)
     if gpe then return end
     if not AF.waitingBind and inp.KeyCode == AF.togllekey then
-        -- O Rayfield tem seu próprio sistema de minimizar/fechar,
-        -- mas mantemos a variável para compatibilidade.
         AF.guiOpen = not AF.guiOpen
     end
 end)
